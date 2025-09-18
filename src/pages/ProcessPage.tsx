@@ -1,11 +1,12 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, ChevronLeft, ChevronRight, X, Copy, Pin, ListChecks } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, X, Copy, Pin, ListChecks, Edit3, Trash2 } from 'lucide-react';
 import { useTodos } from '@/hooks/use-todos';
 import { WORK_PROCESSES } from '@/constants/work-processes';
 import { useSelectedDate } from '@/hooks/use-selected-date';
 import DraggableTask from '@/components/DraggableTask';
-import { Todo } from '@/types/todo';
+import { Todo, WorkProcess } from '@/types/todo';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 type Priority = 'low' | 'medium' | 'high' | 'none';
 
@@ -22,7 +23,7 @@ export default function ProcessPage() {
     updateTodoPriority, 
     copyFromPreviousDay, 
     initializeDateForAllProcesses,
-    reorderTasks 
+    reorderTasks
   } = useTodos();
   
   const { selectedDate, goPrevDay, goNextDay, goTo } = useSelectedDate();
@@ -34,8 +35,21 @@ export default function ProcessPage() {
   const [dailyTasks, setDailyTasks] = useState<Todo[]>([]);
   const [fixedTasks, setFixedTasks] = useState<Todo[]>([]);
   const [stats] = useState({ completed: 0, total: 0, percentage: 0 });
+  
+  // Edit process states
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
 
-  const process = WORK_PROCESSES.find(p => p.id === id);
+  // Get custom processes from localStorage
+  const [customProcesses, setCustomProcesses] = useLocalStorage<WorkProcess[]>("is-todo/custom-processes", []);
+  
+  // Combine default and custom processes
+  const allProcesses = useMemo(() => {
+    return [...WORK_PROCESSES, ...customProcesses];
+  }, [customProcesses]);
+
+  const process = allProcesses.find(p => p.id === id);
 
   // Initialize todos for the current date when component mounts or date changes
   useEffect(() => {
@@ -114,13 +128,85 @@ export default function ProcessPage() {
     reorderTasks(process.id, taskIndex, taskIndex + 1, isFixed);
   }, [process?.id, reorderTasks]);
 
-  const handleCancelAdd = useCallback(() => {
+  const handleCancelAddTask = useCallback(() => {
     setNewTask('');
     setNewTaskDescription('');
     setSelectedPriority('none');
     setIsFixedTask(false);
     setShowAddForm(false);
   }, []);
+
+  const handleEditProcess = useCallback(() => {
+    if (process) {
+      setEditTitle(process.title);
+      setEditDescription(process.description);
+      setShowEditForm(true);
+    }
+  }, [process]);
+
+  const handleSaveEdit = useCallback(() => {
+    if (process && editTitle.trim() && process.id.startsWith('custom-')) {
+      const updatedProcess = {
+        ...process,
+        title: editTitle.trim(),
+        description: editDescription.trim() || 'Custom work process'
+      };
+      
+      setCustomProcesses(prev => 
+        prev.map(p => p.id === process.id ? updatedProcess : p)
+      );
+      
+      setShowEditForm(false);
+      setEditTitle('');
+      setEditDescription('');
+    }
+  }, [process, editTitle, editDescription]);
+
+  const handleCancelEdit = useCallback(() => {
+    setShowEditForm(false);
+    setEditTitle('');
+    setEditDescription('');
+  }, []);
+
+  const handleDeleteProcess = useCallback(() => {
+    if (process && confirm(`Are you sure you want to delete "${process.title}"? This will also delete all associated tasks.`)) {
+      
+      console.log('🗑️ Deleting process:', process.id);
+      
+      if (process.id.startsWith('custom-')) {
+        // Delete custom process
+        const currentCustomProcesses = JSON.parse(localStorage.getItem('is-todo/custom-processes') || '[]');
+        const filteredCustomProcesses = currentCustomProcesses.filter((p: any) => p.id !== process.id);
+        localStorage.setItem('is-todo/custom-processes', JSON.stringify(filteredCustomProcesses));
+        setCustomProcesses(filteredCustomProcesses);
+      } else {
+        // Hide default process
+        const currentHiddenProcesses = JSON.parse(localStorage.getItem('is-todo/hidden-processes') || '[]');
+        const updatedHiddenProcesses = [...currentHiddenProcesses, process.id];
+        localStorage.setItem('is-todo/hidden-processes', JSON.stringify(updatedHiddenProcesses));
+      }
+      
+      // Also remove all associated todos for this process
+      const currentTodos = JSON.parse(localStorage.getItem('is-todo/tasks') || '[]');
+      const filteredTodos = currentTodos.filter((todo: any) => todo.processId !== process.id);
+      localStorage.setItem('is-todo/tasks', JSON.stringify(filteredTodos));
+      console.log('🗑️ Cleaned up todos for deleted/hidden process');
+      
+      // Force a page reload to ensure UI updates
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
+    }
+  }, [process, navigate, setCustomProcesses]);
+
+  useEffect(() => {
+    if (process) {
+      console.log('🔍 Process debug:', {
+        id: process.id,
+        startsWithCustom: process.id.startsWith('custom-')
+      });
+    }
+  }, [process]);
 
   const handleCopyFromPreviousDay = useCallback(() => {
     if (!process?.id) return;
@@ -148,15 +234,30 @@ export default function ProcessPage() {
           background: `linear-gradient(135deg, ${process.gradient[0]}, ${process.gradient[1]})`
         }}
       >
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between p-4" style={{ backgroundColor: process.color }}>
           <button 
             onClick={() => navigate('/')}
-            className="p-2 text-white hover:bg-white/10 rounded-full transition-colors"
+            className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
           >
             <ChevronLeft size={24} />
           </button>
           <h1 className="text-xl font-bold text-white">{process.title}</h1>
-          <div className="w-8"></div> {/* Spacer for alignment */}
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleEditProcess}
+              className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+              title="Edit Process"
+            >
+              <Edit3 size={16} />
+            </button>
+            <button 
+              onClick={handleDeleteProcess}
+              className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-red-500/30 transition-colors"
+              title="Delete Process"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Date Navigation */}
@@ -297,7 +398,7 @@ export default function ProcessPage() {
               alignItems: 'center',
               justifyContent: 'center'
             }}
-            onClick={handleCancelAdd}
+            onClick={handleCancelAddTask}
           >
             <div 
               className="bg-white rounded-xl w-full max-w-md shadow-2xl"
@@ -313,7 +414,7 @@ export default function ProcessPage() {
                 <h3 className="text-lg font-semibold text-gray-900">Add New Task</h3>
                 <button 
                   type="button"
-                  onClick={handleCancelAdd}
+                  onClick={handleCancelAddTask}
                   className="text-gray-500 hover:text-gray-700 transition-colors"
                 >
                   <X size={20} />
@@ -383,7 +484,7 @@ export default function ProcessPage() {
                 <div className="p-4 border-t flex justify-end gap-3">
                   <button
                     type="button"
-                    onClick={handleCancelAdd}
+                    onClick={handleCancelAddTask}
                     className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
                   >
                     Cancel
@@ -420,6 +521,77 @@ export default function ProcessPage() {
           >
             <Plus size={24} />
           </button>
+        )}
+
+        {/* Edit Process Modal */}
+        {showEditForm && (
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={handleCancelEdit}
+          >
+            <div 
+              className="bg-white rounded-xl w-full max-w-md shadow-2xl m-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-gray-900">Edit Process</h3>
+                <button 
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="p-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Process Title
+                  </label>
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full h-11 bg-gray-50 rounded-lg px-3 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    placeholder="Enter process title"
+                    autoFocus
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <input
+                    type="text"
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    className="w-full h-11 bg-gray-50 rounded-lg px-3 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    placeholder="Enter process description"
+                  />
+                </div>
+              </div>
+              
+              <div className="p-4 border-t flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  disabled={!editTitle.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

@@ -1,10 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { WorkProcess } from '@/types/todo';
 import { useTodos } from '@/hooks/use-todos';
-import { Briefcase, Users, Settings, BarChart3, UserPlus } from 'lucide-react';
+import { Briefcase, Users, Settings, BarChart3, UserPlus, Edit3, Trash2 } from 'lucide-react';
 
 interface ProcessCardProps {
   process: WorkProcess;
+  onEdit?: (process: WorkProcess) => void;
+  onDelete?: (process: WorkProcess) => void;
 }
 
 const iconMap = {
@@ -15,15 +17,26 @@ const iconMap = {
   UserPlus,
 } as const;
 
-export default function ProcessCard({ process }: ProcessCardProps) {
+export default function ProcessCard({ process, onEdit, onDelete }: ProcessCardProps) {
   const navigate = useNavigate();
   const { getCompletionStats } = useTodos();
   const stats = getCompletionStats(process.id);
   
   const IconComponent = iconMap[process.icon as keyof typeof iconMap];
+  const isEmojiIcon = !IconComponent && process.icon;
 
   const handlePress = () => {
     navigate(`/process/${process.id}`);
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit?.(process);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete?.(process);
   };
 
   return (
@@ -39,9 +52,34 @@ export default function ProcessCard({ process }: ProcessCardProps) {
         }}
       >
         <div className="flex justify-between items-center">
-          {IconComponent && <IconComponent size={28} color="white" />}
-          <div className="bg-white bg-opacity-20 px-2 py-1 rounded-xl">
-            <span className="text-white text-xs font-semibold">{stats.percentage}%</span>
+          <div className="flex items-center">
+            {IconComponent ? (
+              <IconComponent size={28} color="white" />
+            ) : isEmojiIcon ? (
+              <span className="text-2xl">{process.icon}</span>
+            ) : null}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1">
+              <button
+                onClick={handleEdit}
+                className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+                title="Edit Process"
+              >
+                <Edit3 size={12} />
+              </button>
+              <button
+                onClick={handleDelete}
+                className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-red-500/30 transition-colors"
+                title="Delete Process"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+            <div className="bg-white bg-opacity-20 px-2 py-1 rounded-xl">
+              <span className="text-white text-xs font-semibold">{stats.percentage}%</span>
+            </div>
           </div>
         </div>
         
