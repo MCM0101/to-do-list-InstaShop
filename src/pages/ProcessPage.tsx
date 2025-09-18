@@ -58,63 +58,6 @@ export default function ProcessPage() {
     }
   }, [process?.id, getDailyTasks, getFixedTasks, selectedDate]);
 
-  // Test localStorage on component mount and add debug function
-  useEffect(() => {
-    console.log('🧪 ProcessPage: Testing localStorage...');
-    const testKey = 'test-storage';
-    const testValue = { test: 'data', timestamp: Date.now() };
-    
-    // Test write
-    localStorage.setItem(testKey, JSON.stringify(testValue));
-    console.log('✅ ProcessPage: Wrote to localStorage:', testValue);
-    
-    // Test read
-    const retrieved = localStorage.getItem(testKey);
-    console.log('📖 ProcessPage: Read from localStorage:', retrieved);
-    
-    // Check existing todos
-    const existingTodos = localStorage.getItem('daily-todos');
-    console.log('📋 ProcessPage: Existing todos in localStorage:', existingTodos ? `${existingTodos.length} characters` : 'null');
-    
-    // Add debug function to window for manual testing
-    (window as any).debugTodos = () => {
-      const data = localStorage.getItem('daily-todos');
-      console.log('🔍 DEBUG: Current localStorage data:', data);
-      if (data) {
-        try {
-          const parsed = JSON.parse(data);
-          console.log('🔍 DEBUG: Parsed data:', parsed);
-          console.log('🔍 DEBUG: Number of entries:', parsed.length);
-        } catch (e) {
-          console.error('🔍 DEBUG: Failed to parse:', e);
-        }
-      }
-    };
-    
-    console.log('🔧 Added window.debugTodos() function - call it in console to check data');
-    
-    // Add a test function to force refresh data
-    (window as any).testPersistence = () => {
-      console.log('🧪 TESTING PERSISTENCE:');
-      const data = localStorage.getItem('daily-todos');
-      console.log('📦 Raw data:', data ? `${data.length} chars` : 'null');
-      
-      if (data) {
-        const parsed = JSON.parse(data);
-        console.log('📋 Parsed entries:', parsed.length);
-        parsed.forEach((entry: any, i: number) => {
-          console.log(`  ${i + 1}. Process: ${entry.processId}, Date: ${entry.date}, Tasks: ${entry.todos.length}`);
-        });
-      }
-      
-      console.log('🔄 Now refresh the page to test if data persists!');
-    };
-    
-    console.log('🔧 Added window.testPersistence() function');
-    
-    // Cleanup
-    localStorage.removeItem(testKey);
-  }, []);
 
   const formattedDate = useMemo(() => {
     const [y, m, d] = selectedDate.split('-').map(n => parseInt(n, 10));
