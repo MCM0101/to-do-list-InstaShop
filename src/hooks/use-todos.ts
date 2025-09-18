@@ -3,13 +3,13 @@ import { useMemo, useCallback } from 'react';
 import { DailyTodos, Todo } from '@/types/todo';
 import { getTodaysTodos } from '@/mocks/daily-todos';
 import { useSelectedDate } from '@/hooks/use-selected-date';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useFirestore } from '@/hooks/useFirestore';
 
 type Priority = 'low' | 'medium' | 'high' | 'none';
 
 export const [TodoProvider, useTodos] = createContextHook(() => {
   const { selectedDate } = useSelectedDate();
-  const [dailyTodos, setDailyTodos] = useLocalStorage<DailyTodos[]>("is-todo/tasks", getTodaysTodos());
+  const [dailyTodos, setDailyTodos] = useFirestore<DailyTodos[]>("dailyTodos", getTodaysTodos());
 
 
   const getTodosForProcess = useCallback((processId: string): Todo[] => {

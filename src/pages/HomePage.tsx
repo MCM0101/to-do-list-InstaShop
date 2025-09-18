@@ -4,7 +4,7 @@ import ProcessCard from '@/components/ProcessCard';
 import { WORK_PROCESSES } from '@/constants/work-processes';
 import { useSelectedDate } from '@/hooks/use-selected-date';
 import { useTodos } from '@/hooks/use-todos';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useFirestore } from '@/hooks/useFirestore';
 import { WorkProcess } from '@/types/todo';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -18,9 +18,9 @@ export default function HomePage() {
   const [showDuplicateOptions, setShowDuplicateOptions] = useState(false);
   const [editingProcess, setEditingProcess] = useState<WorkProcess | null>(null);
   
-  // Use localStorage to persist custom work processes and hidden processes
-  const [customProcesses, setCustomProcesses] = useLocalStorage<WorkProcess[]>("is-todo/custom-processes", []);
-  const [hiddenProcesses, setHiddenProcesses] = useLocalStorage<string[]>("is-todo/hidden-processes", []);
+  // Use Firestore to persist custom work processes and hidden processes
+  const [customProcesses, setCustomProcesses] = useFirestore<WorkProcess[]>("customProcesses", []);
+  const [hiddenProcesses, setHiddenProcesses] = useFirestore<string[]>("hiddenProcesses", []);
   
   // Combine default and custom processes, excluding hidden ones
   const allProcesses = useMemo(() => {
@@ -146,29 +146,14 @@ export default function HomePage() {
       
       if (process.id.startsWith('custom-')) {
         // Delete custom process
-        const currentCustomProcesses = JSON.parse(localStorage.getItem('is-todo/custom-processes') || '[]');
-        const filteredCustomProcesses = currentCustomProcesses.filter((p: any) => p.id !== process.id);
-        localStorage.setItem('is-todo/custom-processes', JSON.stringify(filteredCustomProcesses));
-        setCustomProcesses(filteredCustomProcesses);
+        setCustomProcesses((prev: WorkProcess[]) => prev.filter(p => p.id !== process.id));
       } else {
         // Hide default process
-        const currentHiddenProcesses = JSON.parse(localStorage.getItem('is-todo/hidden-processes') || '[]');
-        const updatedHiddenProcesses = [...currentHiddenProcesses, process.id];
-        localStorage.setItem('is-todo/hidden-processes', JSON.stringify(updatedHiddenProcesses));
-        setHiddenProcesses(updatedHiddenProcesses);
+        setHiddenProcesses((prev: string[]) => [...prev, process.id]);
       }
       
-      // Remove all associated todos for this process
-      const currentTodos = JSON.parse(localStorage.getItem('is-todo/tasks') || '[]');
-      const filteredTodos = currentTodos.filter((todo: any) => todo.processId !== process.id);
-      localStorage.setItem('is-todo/tasks', JSON.stringify(filteredTodos));
-      
-      console.log('🗑️ Deleted/hidden process and associated todos:', process.title);
-      
-      // Force a page reload to ensure UI updates
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
+      // Note: Todo deletion will be handled by the updated useTodos hook
+      console.log('🗑️ Deleted/hidden process:', process.title);
     }
   };
 
