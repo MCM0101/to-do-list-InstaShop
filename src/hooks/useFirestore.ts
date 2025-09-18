@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { FirestoreService } from '@/services/firestoreService';
 
 export function useFirestore<T>(
-  key: 'dailyTodos' | 'customProcesses' | 'hiddenProcesses',
+  key: 'dailyTodos' | 'customProcesses' | 'hiddenProcesses' | 'allProcesses',
   initialValue: T
 ) {
   const [value, setValue] = useState<T>(initialValue);
@@ -29,6 +29,17 @@ export function useFirestore<T>(
           break;
         case 'hiddenProcesses':
           data = await FirestoreService.getHiddenProcesses() as T;
+          break;
+        case 'allProcesses':
+          const processes = await FirestoreService.getAllProcesses() as any[];
+          // If no processes in Firestore, initialize with default and save them
+          if (processes.length === 0) {
+            console.log('🔄 Initializing Firestore with default processes');
+            await FirestoreService.saveAllProcesses(initialValue as any);
+            data = initialValue;
+          } else {
+            data = processes as T;
+          }
           break;
         default:
           data = initialValue;
@@ -57,6 +68,9 @@ export function useFirestore<T>(
           break;
         case 'hiddenProcesses':
           await FirestoreService.saveHiddenProcesses(newValue as any);
+          break;
+        case 'allProcesses':
+          await FirestoreService.saveAllProcesses(newValue as any);
           break;
       }
       

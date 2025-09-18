@@ -6,7 +6,7 @@ import { WORK_PROCESSES } from '@/constants/work-processes';
 import { useSelectedDate } from '@/hooks/use-selected-date';
 import DraggableTask from '@/components/DraggableTask';
 import { Todo, WorkProcess } from '@/types/todo';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useFirestore } from '@/hooks/useFirestore';
 
 type Priority = 'low' | 'medium' | 'high' | 'none';
 
@@ -41,15 +41,51 @@ export default function ProcessPage() {
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
 
-  // Get custom processes from localStorage
-  const [customProcesses, setCustomProcesses] = useLocalStorage<WorkProcess[]>("is-todo/custom-processes", []);
+  // Firestore functionality - get all processes
+  const [allProcesses, setAllProcesses, { isLoading: allProcessesLoading }] = useFirestore<WorkProcess[]>("allProcesses", WORK_PROCESSES);
   
-  // Combine default and custom processes
-  const allProcesses = useMemo(() => {
-    return [...WORK_PROCESSES, ...customProcesses];
-  }, [customProcesses]);
+  console.log('🔍 ProcessPage allProcesses:', allProcesses.map(p => ({ id: p.id, title: p.title })));
 
   const process = allProcesses.find(p => p.id === id);
+  
+  console.log('🔍 ProcessPage looking for ID:', id);
+  console.log('🔍 ProcessPage found process:', process ? { id: process.id, title: process.title } : 'NOT FOUND');
+  console.log('🔍 ProcessPage allProcessesLoading:', allProcessesLoading);
+
+  // Temporarily disable loading state to debug
+  // if (allProcessesLoading) {
+  //   return (
+  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+  //       <div className="text-center">
+  //         <div className="w-12 h-12 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+  //         <p className="text-gray-600">Loading process...</p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
+
+  // Temporarily disable process not found to debug
+  // if (!process) {
+  //   return (
+  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+  //       <div className="text-center">
+  //         <h1 className="text-2xl font-bold text-gray-900 mb-2">Process Not Found</h1>
+  //         <p className="text-gray-600 mb-4">The process you're looking for doesn't exist.</p>
+  //         <button 
+  //           onClick={() => navigate('/')}
+  //           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+  //         >
+  //           Back to Home
+  //         </button>
+  //       </div>
+  //     </div>
+  //   );
+  // }
+
+  // Debug: Show process page even if process not found
+  if (!process) {
+    console.log('⚠️ Process not found, but showing page for debugging');
+  }
 
   // Initialize todos for the current date when component mounts or date changes
   useEffect(() => {
@@ -145,14 +181,14 @@ export default function ProcessPage() {
   }, [process]);
 
   const handleSaveEdit = useCallback(() => {
-    if (process && editTitle.trim() && process.id.startsWith('custom-')) {
+    if (process && editTitle.trim()) {
       const updatedProcess = {
         ...process,
         title: editTitle.trim(),
-        description: editDescription.trim() || 'Custom work process'
+        description: editDescription.trim() || process.description
       };
       
-      setCustomProcesses(prev => 
+      setAllProcesses((prev: WorkProcess[]) => 
         prev.map(p => p.id === process.id ? updatedProcess : p)
       );
       
@@ -160,7 +196,7 @@ export default function ProcessPage() {
       setEditTitle('');
       setEditDescription('');
     }
-  }, [process, editTitle, editDescription]);
+  }, [process, editTitle, editDescription, setAllProcesses]);
 
   const handleCancelEdit = useCallback(() => {
     setShowEditForm(false);
@@ -173,31 +209,17 @@ export default function ProcessPage() {
       
       console.log('🗑️ Deleting process:', process.id);
       
-      if (process.id.startsWith('custom-')) {
-        // Delete custom process
-        const currentCustomProcesses = JSON.parse(localStorage.getItem('is-todo/custom-processes') || '[]');
-        const filteredCustomProcesses = currentCustomProcesses.filter((p: any) => p.id !== process.id);
-        localStorage.setItem('is-todo/custom-processes', JSON.stringify(filteredCustomProcesses));
-        setCustomProcesses(filteredCustomProcesses);
-      } else {
-        // Hide default process
-        const currentHiddenProcesses = JSON.parse(localStorage.getItem('is-todo/hidden-processes') || '[]');
-        const updatedHiddenProcesses = [...currentHiddenProcesses, process.id];
-        localStorage.setItem('is-todo/hidden-processes', JSON.stringify(updatedHiddenProcesses));
-      }
+      // Remove process from allProcesses
+      setAllProcesses((prev: WorkProcess[]) => prev.filter(p => p.id !== process.id));
       
-      // Also remove all associated todos for this process
-      const currentTodos = JSON.parse(localStorage.getItem('is-todo/tasks') || '[]');
-      const filteredTodos = currentTodos.filter((todo: any) => todo.processId !== process.id);
-      localStorage.setItem('is-todo/tasks', JSON.stringify(filteredTodos));
-      console.log('🗑️ Cleaned up todos for deleted/hidden process');
+      console.log('🗑️ Deleted process');
       
-      // Force a page reload to ensure UI updates
+      // Navigate back to home
       setTimeout(() => {
-        window.location.href = '/';
+        navigate('/');
       }, 100);
     }
-  }, [process, navigate, setCustomProcesses]);
+  }, [process, navigate, setAllProcesses]);
 
   useEffect(() => {
     if (process) {
@@ -231,17 +253,19 @@ export default function ProcessPage() {
       <div 
         className="p-6 pt-4"
         style={{
-          background: `linear-gradient(135deg, ${process.gradient[0]}, ${process.gradient[1]})`
+          background: process ? `linear-gradient(135deg, ${process.gradient[0]}, ${process.gradient[1]})` : 'linear-gradient(135deg, #6366f1, #8b5cf6)'
         }}
       >
-        <div className="flex items-center justify-between p-4" style={{ backgroundColor: process.color }}>
+        <div className="flex items-center justify-between p-4" style={{ backgroundColor: process?.color || '#6366f1' }}>
           <button 
             onClick={() => navigate('/')}
             className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
           >
             <ChevronLeft size={24} />
           </button>
-          <h1 className="text-xl font-bold text-white">{process.title}</h1>
+          <h1 className="text-xl font-bold text-white">
+            {process ? process.title : `DEBUG: ID=${id}, Loading=${allProcessesLoading}, ProcessCount=${allProcesses.length}`}
+          </h1>
           <div className="flex items-center gap-2">
             <button 
               onClick={handleEditProcess}

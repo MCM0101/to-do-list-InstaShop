@@ -14,6 +14,7 @@ const USER_ID = 'user_instashop_2024';
 const TODOS_COLLECTION = 'todos';
 const PROCESSES_COLLECTION = 'processes';
 const SETTINGS_COLLECTION = 'settings';
+const ALL_PROCESSES_COLLECTION = 'allProcesses';
 
 export class FirestoreService {
   // ==================== TODOS ====================
@@ -84,6 +85,42 @@ export class FirestoreService {
       }
     } catch (error) {
       console.error('❌ Error loading custom processes:', error);
+      return [];
+    }
+  }
+
+  // ==================== ALL PROCESSES ====================
+  
+  static async saveAllProcesses(processes: WorkProcess[]): Promise<void> {
+    try {
+      const docRef = doc(db, ALL_PROCESSES_COLLECTION, USER_ID);
+      await setDoc(docRef, {
+        userId: USER_ID,
+        allProcesses: processes,
+        lastUpdated: new Date().toISOString()
+      });
+      console.log('✅ All processes saved to Firestore');
+    } catch (error) {
+      console.error('❌ Error saving all processes:', error);
+      throw error;
+    }
+  }
+
+  static async getAllProcesses(): Promise<WorkProcess[]> {
+    try {
+      const docRef = doc(db, ALL_PROCESSES_COLLECTION, USER_ID);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        console.log('✅ All processes loaded from Firestore');
+        return data.allProcesses || [];
+      } else {
+        console.log('📝 No processes found in Firestore, will use default processes');
+        return []; // Return empty array, let the hook handle the fallback
+      }
+    } catch (error) {
+      console.error('❌ Error loading all processes:', error);
       return [];
     }
   }

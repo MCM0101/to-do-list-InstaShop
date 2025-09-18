@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { WorkProcess } from '@/types/todo';
 import { useTodos } from '@/hooks/use-todos';
-import { Briefcase, Users, Settings, BarChart3, UserPlus, Edit3, Trash2 } from 'lucide-react';
+import { Briefcase, Users, Settings, BarChart3, UserPlus, Edit3, Trash2, ListChecks } from 'lucide-react';
 
 interface ProcessCardProps {
   process: WorkProcess;
@@ -15,6 +15,7 @@ const iconMap = {
   Settings,
   BarChart3,
   UserPlus,
+  ListChecks,
 } as const;
 
 export default function ProcessCard({ process, onEdit, onDelete }: ProcessCardProps) {
@@ -26,6 +27,7 @@ export default function ProcessCard({ process, onEdit, onDelete }: ProcessCardPr
   const isEmojiIcon = !IconComponent && process.icon;
 
   const handlePress = () => {
+    console.log('🔍 ProcessCard clicked:', process.id, process.title);
     navigate(`/process/${process.id}`);
   };
 
@@ -62,20 +64,24 @@ export default function ProcessCard({ process, onEdit, onDelete }: ProcessCardPr
           
           <div className="flex items-center gap-2">
             <div className="flex gap-1">
-              <button
-                onClick={handleEdit}
-                className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
-                title="Edit Process"
-              >
-                <Edit3 size={12} />
-              </button>
-              <button
-                onClick={handleDelete}
-                className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-red-500/30 transition-colors"
-                title="Delete Process"
-              >
-                <Trash2 size={12} />
-              </button>
+              {onEdit && (
+                <button
+                  onClick={handleEdit}
+                  className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+                  title="Edit Process"
+                >
+                  <Edit3 size={12} />
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={handleDelete}
+                  className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-red-500/30 transition-colors"
+                  title="Delete Process"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
             </div>
             <div className="bg-white bg-opacity-20 px-2 py-1 rounded-xl">
               <span className="text-white text-xs font-semibold">{stats.percentage}%</span>
