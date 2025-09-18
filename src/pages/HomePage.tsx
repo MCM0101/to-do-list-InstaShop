@@ -4,6 +4,8 @@ import ProcessCard from '@/components/ProcessCard';
 import { WORK_PROCESSES } from '@/constants/work-processes';
 import { useSelectedDate } from '@/hooks/use-selected-date';
 import { useTodos } from '@/hooks/use-todos';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { WorkProcess } from '@/types/todo';
 
 export default function HomePage() {
   const { selectedDate, goPrevDay, goNextDay, goTo } = useSelectedDate();
@@ -11,6 +13,14 @@ export default function HomePage() {
   const [showAddProcessForm, setShowAddProcessForm] = useState(false);
   const [newProcessTitle, setNewProcessTitle] = useState('');
   const [newProcessDescription, setNewProcessDescription] = useState('');
+  
+  // Use localStorage to persist custom work processes
+  const [customProcesses, setCustomProcesses] = useLocalStorage<WorkProcess[]>("is-todo/custom-processes", []);
+  
+  // Combine default and custom processes
+  const allProcesses = useMemo(() => {
+    return [...WORK_PROCESSES, ...customProcesses];
+  }, [customProcesses]);
 
   // Initialize todos for the current date when component mounts or date changes
   useEffect(() => {
@@ -27,9 +37,24 @@ export default function HomePage() {
   }, [selectedDate]);
 
   const handleAddProcess = () => {
-    // For now, just show an alert. In a real app, this would add to the processes list
     if (newProcessTitle.trim()) {
-      alert(`New process "${newProcessTitle}" would be added here!`);
+      // Generate a unique ID for the new process
+      const newId = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Create the new process object
+      const newProcess: WorkProcess = {
+        id: newId,
+        title: newProcessTitle.trim(),
+        description: newProcessDescription.trim() || 'Custom work process',
+        color: '#6366f1', // Default indigo color
+        icon: '📋', // Default clipboard icon
+        gradient: ['#6366f1', '#8b5cf6'] // Default indigo to purple gradient
+      };
+      
+      // Add to custom processes
+      setCustomProcesses(prev => [...prev, newProcess]);
+      
+      // Reset form
       setNewProcessTitle('');
       setNewProcessDescription('');
       setShowAddProcessForm(false);
@@ -159,8 +184,8 @@ export default function HomePage() {
           </button>
         )}
 
-        {/* Existing Processes */}
-        {WORK_PROCESSES.map((process) => (
+        {/* All Processes (Default + Custom) */}
+        {allProcesses.map((process) => (
           <ProcessCard key={process.id} process={process} />
         ))}
       </div>

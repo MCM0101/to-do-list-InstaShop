@@ -11,13 +11,6 @@ export const [TodoProvider, useTodos] = createContextHook(() => {
   const { selectedDate } = useSelectedDate();
   const [dailyTodos, setDailyTodos] = useLocalStorage<DailyTodos[]>("is-todo/tasks", getTodaysTodos());
 
-  const ensureEntry = useCallback((processId: string, date: string) => {
-    const exists = dailyTodos.some(dt => dt.processId === processId && dt.date === date);
-    if (!exists) {
-      const newEntry = { processId, date, todos: [] as Todo[] };
-      setDailyTodos(prev => [...prev, newEntry]);
-    }
-  }, [dailyTodos, setDailyTodos]);
 
   const getTodosForProcess = useCallback((processId: string): Todo[] => {
     if (!processId?.trim()) return [];
@@ -219,7 +212,7 @@ export const [TodoProvider, useTodos] = createContextHook(() => {
     return { completed, total, percentage };
   }, [getDailyTasks, getFixedTasks]);
 
-  const initializeDateForAllProcesses = useCallback((date: string) => {
+  const initializeDateForAllProcesses = useCallback((_date: string) => {
     // This function can be used to ensure all processes have entries for a given date
     // For now, it's a no-op since we create entries on-demand
   }, []);

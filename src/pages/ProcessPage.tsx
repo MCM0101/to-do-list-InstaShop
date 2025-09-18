@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Calendar, CheckCircle2, Plus, ChevronLeft, ChevronRight, X, Copy, Pin, ListChecks } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, X, Copy, Pin, ListChecks } from 'lucide-react';
 import { useTodos } from '@/hooks/use-todos';
 import { WORK_PROCESSES } from '@/constants/work-processes';
 import { useSelectedDate } from '@/hooks/use-selected-date';
@@ -15,7 +15,6 @@ export default function ProcessPage() {
   const { 
     getDailyTasks,
     getFixedTasks,
-    getCompletionStats, 
     toggleTodo, 
     addTodo, 
     deleteTodo, 
@@ -23,7 +22,6 @@ export default function ProcessPage() {
     updateTodoPriority, 
     copyFromPreviousDay, 
     initializeDateForAllProcesses,
-    updateTaskOrder,
     reorderTasks 
   } = useTodos();
   
@@ -35,7 +33,7 @@ export default function ProcessPage() {
   const [isFixedTask, setIsFixedTask] = useState(false);
   const [dailyTasks, setDailyTasks] = useState<Todo[]>([]);
   const [fixedTasks, setFixedTasks] = useState<Todo[]>([]);
-  const [stats, setStats] = useState({ completed: 0, total: 0, percentage: 0 });
+  const [stats] = useState({ completed: 0, total: 0, percentage: 0 });
 
   const process = WORK_PROCESSES.find(p => p.id === id);
 
